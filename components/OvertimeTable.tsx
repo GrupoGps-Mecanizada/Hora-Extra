@@ -1,6 +1,9 @@
 import React from 'react';
 import type { OvertimeRecord } from '../types';
 
+// Declara a variável global XLSX injetada pela biblioteca SheetJS via CDN
+declare const XLSX: any;
+
 interface OvertimeTableProps {
   records: OvertimeRecord[];
   onDeleteRecord: (id: string) => void;
@@ -14,6 +17,28 @@ const formatDate = (dateString: string) => {
 
 
 const OvertimeTable: React.FC<OvertimeTableProps> = ({ records, onDeleteRecord }) => {
+
+  const handleExport = () => {
+    const formattedRecords = records.map(record => ({
+      'Data': formatDate(record.data),
+      'Colaborador': record.colaborador,
+      'Justificativa': record.justificativa || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(formattedRecords);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Horas Extras");
+
+    // Ajusta a largura das colunas
+    worksheet['!cols'] = [
+        { wch: 12 }, // Data
+        { wch: 40 }, // Colaborador
+        { wch: 60 }  // Justificativa
+    ];
+
+    XLSX.writeFile(workbook, "relatorio_horas_extras.xlsx");
+  };
+
   if (records.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-center">
@@ -25,7 +50,18 @@ const OvertimeTable: React.FC<OvertimeTableProps> = ({ records, onDeleteRecord }
 
   return (
     <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Registros</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Registros</h2>
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414l-3-3z" />
+          </svg>
+          Exportar para Excel
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 hidden md:table">
           <thead className="bg-yellow-400">
