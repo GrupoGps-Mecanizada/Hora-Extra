@@ -7,18 +7,316 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏰</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Adicionado Babel para transpilar JSX no navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0"
+    "react-dom/client": "https://aistudiocdn.com/react-dom@19.2.0/client",
+    "react-dom": "https://aistudiocdn.com/react-dom@19.2.0",
+    "react": "https://aistudiocdn.com/react@19.2.0"
   }
 }
 </script>
 </head>
   <body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="text/babel" data-type="module">
+      import React, { useState, useEffect } from 'react';
+      import ReactDOM from 'react-dom/client';
+
+      // --- Início de hooks/useLocalStorage.ts ---
+      function getValue(key, initialValue) {
+        const savedValue = localStorage.getItem(key);
+        if (savedValue) {
+          try {
+            return JSON.parse(savedValue);
+          } catch (error) {
+            console.error('Error parsing JSON from localStorage', error);
+            return initialValue instanceof Function ? initialValue() : initialValue;
+          }
+        }
+
+        if (initialValue instanceof Function) {
+          return initialValue();
+        }
+        return initialValue;
+      }
+
+      function useLocalStorage(key, initialValue) {
+        const [value, setValue] = useState(() => getValue(key, initialValue));
+
+        useEffect(() => {
+          localStorage.setItem(key, JSON.stringify(value));
+        }, [key, value]);
+
+        return [value, setValue];
+      }
+      // --- Fim de hooks/useLocalStorage.ts ---
+
+
+      // --- Início de components/Header.tsx ---
+      const Header = () => {
+        return (
+          <header className="bg-yellow-400 shadow-md">
+            <div className="container mx-auto p-4 md:p-6">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 text-center">
+                Registro de Horas Extras
+              </h1>
+            </div>
+          </header>
+        );
+      };
+      // --- Fim de components/Header.tsx ---
+
+
+      // --- Início de components/OvertimeForm.tsx ---
+      const OvertimeForm = ({ onAddRecord }) => {
+        const [data, setData] = useState('');
+        const [colaborador, setColaborador] = useState('');
+        const [justificativa, setJustificativa] = useState('');
+
+        const handleSubmit = (e) => {
+          e.preventDefault();
+          if (!data || !colaborador) {
+            alert('Por favor, preencha a data e o nome do colaborador.');
+            return;
+          }
+          onAddRecord({ data, colaborador, justificativa });
+          setData('');
+          setColaborador('');
+          setJustificativa('');
+        };
+
+        return (
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg sticky top-8">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Adicionar Novo Registro</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="data" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Data
+                </label>
+                <input
+                  type="date"
+                  id="data"
+                  value={data}
+                  onChange={(e) => setData(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="colaborador" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Colaborador
+                </label>
+                <input
+                  type="text"
+                  id="colaborador"
+                  value={colaborador}
+                  onChange={(e) => setColaborador(e.target.value)}
+                  placeholder="Nome do Colaborador"
+                  className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="justificativa" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Justificativa
+                </label>
+                <textarea
+                  id="justificativa"
+                  value={justificativa}
+                  onChange={(e) => setJustificativa(e.target.value)}
+                  rows={3}
+                  placeholder="Motivo da hora extra"
+                  className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-800 bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
+              >
+                Registrar
+              </button>
+            </form>
+          </div>
+        );
+      };
+      // --- Fim de components/OvertimeForm.tsx ---
+
+
+      // --- Início de components/OvertimeTable.tsx ---
+      const formatDate = (dateString) => {
+          if (!dateString) return '';
+          const [year, month, day] = dateString.split('-');
+          return `${day}/${month}/${year}`;
+      };
+
+      const OvertimeTable = ({ records, onDeleteRecord }) => {
+
+        const handleExport = () => {
+          const formattedRecords = records.map(record => ({
+            'Data': formatDate(record.data),
+            'Colaborador': record.colaborador,
+            'Justificativa': record.justificativa || ''
+          }));
+
+          const worksheet = XLSX.utils.json_to_sheet(formattedRecords);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Horas Extras");
+
+          worksheet['!cols'] = [
+              { wch: 12 }, // Data
+              { wch: 40 }, // Colaborador
+              { wch: 60 }  // Justificativa
+          ];
+
+          XLSX.writeFile(workbook, "relatorio_horas_extras.xlsx");
+        };
+
+        if (records.length === 0) {
+          return (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-center">
+              <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Registros de Horas Extras</h2>
+              <p className="text-gray-500 dark:text-gray-400">Nenhum registro encontrado. Adicione um novo registro no formulário ao lado.</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Registros</h2>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414l-3-3z" />
+                </svg>
+                Exportar para Excel
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 hidden md:table">
+                <thead className="bg-yellow-400">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      Data
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      Colaborador
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      Justificativa
+                    </th>
+                    <th scope="col" className="relative px-6 py-3">
+                      <span className="sr-only">Ações</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {records.map((record) => (
+                    <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(record.data)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{record.colaborador}</td>
+                      <td className="px-6 py-4 whitespace-normal text-sm text-gray-600 dark:text-gray-300">{record.justificativa || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => onDeleteRecord(record.id)}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600 transition-colors"
+                          aria-label={`Excluir registro de ${record.colaborador}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Mobile View */}
+              <div className="md:hidden space-y-4">
+                {records.map((record) => (
+                  <div key={record.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 shadow">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">{record.colaborador}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{formatDate(record.data)}</p>
+                        </div>
+                         <button
+                          onClick={() => onDeleteRecord(record.id)}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 p-1 -mt-1 -mr-1"
+                          aria-label={`Excluir registro de ${record.colaborador}`}
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                    </div>
+                    {record.justificativa && (
+                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 p-2 rounded">
+                          <span className="font-medium">Justificativa:</span> {record.justificativa}
+                        </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      };
+      // --- Fim de components/OvertimeTable.tsx ---
+
+
+      // --- Início de App.tsx ---
+      const App = () => {
+        const [records, setRecords] = useLocalStorage('overtimeRecords', []);
+
+        const addRecord = (newRecord) => {
+          const recordWithId = {
+            ...newRecord,
+            id: new Date().toISOString(),
+          };
+          setRecords(prevRecords => [recordWithId, ...prevRecords]);
+        };
+
+        const deleteRecord = (id) => {
+          if (window.confirm('Tem certeza que deseja excluir este registro?')) {
+            setRecords(prevRecords => prevRecords.filter(record => record.id !== id));
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 font-sans">
+            <Header />
+            <main className="container mx-auto p-4 md:p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1">
+                  <OvertimeForm onAddRecord={addRecord} />
+                </div>
+                <div className="lg:col-span-2">
+                  <OvertimeTable records={records} onDeleteRecord={deleteRecord} />
+                </div>
+              </div>
+            </main>
+          </div>
+        );
+      };
+      // --- Fim de App.tsx ---
+
+
+      // --- Início de index.tsx ---
+      const rootElement = document.getElementById('root');
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+      // --- Fim de index.tsx ---
+    </script>
   </body>
 </html>
