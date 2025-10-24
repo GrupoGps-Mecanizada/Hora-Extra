@@ -1,0 +1,5 @@
+{
+  "name": "Registro de Horas Extras",
+  "description": "Um aplicativo simples para registrar e gerenciar as horas extras dos colaboradores de forma rápida e organizada. Os dados são salvos localmente no seu navegador.",
+  "requestFramePermissions": []
+}
